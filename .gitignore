@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Downloaded model binaries
+models/*.task
+
+# OS
+.DS_Store
+Thumbs.db

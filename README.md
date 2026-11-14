@@ -42,7 +42,13 @@ From the repository root:
 python src/pose_detection.py
 ```
 
-Press **Q** to quit.
+The app automatically creates a `recordings/` folder and saves each session as an MP4 file in that folder. You can override the folder with:
+
+```powershell
+python src/pose_detection.py --record-dir recordings
+```
+
+Press **Q** or **Ctrl+Q** to quit.
 
 ## Project structure
 

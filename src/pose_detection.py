@@ -66,6 +66,12 @@ def parse_args():
         help="Path to MediaPipe Pose Landmarker .task model",
     )
     parser.add_argument(
+        "--record-dir",
+        type=Path,
+        default=Path("recordings"),
+        help="Directory to save MP4 recordings in",
+    )
+    parser.add_argument(
         "--no-mirror",
         action="store_true",
         help="Do not horizontally mirror the camera image",
@@ -100,9 +106,15 @@ def main() -> int:
         print(f"Could not open camera device {args.camera}.")
         return 1
 
+    args.record_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    output_path = args.record_dir / f"safety_mirror_{timestamp}.mp4"
+    writer = None
+
     previous_frame_time = time.perf_counter()
     start_time = time.monotonic()
     last_timestamp_ms = -1
+    ctrl_pressed = False
 
     try:
         with vision.PoseLandmarker.create_from_options(options) as landmarker:
@@ -111,6 +123,17 @@ def main() -> int:
                 if not ok:
                     print("Could not read a frame from the camera.")
                     break
+
+                if writer is None:
+                    writer = cv2.VideoWriter(
+                        str(output_path),
+                        cv2.VideoWriter_fourcc(*"mp4v"),
+                        30.0,
+                        (frame.shape[1], frame.shape[0]),
+                    )
+                    if not writer.isOpened():
+                        print(f"Could not create recording file: {output_path}")
+                        writer = None
 
                 if not args.no_mirror:
                     frame = cv2.flip(frame, 1)
@@ -150,14 +173,30 @@ def main() -> int:
                     cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2,
                 )
                 cv2.putText(
-                    frame, "Press Q to quit", (20, frame.shape[0] - 20),
+                    frame, "Press Q or Ctrl+Q to quit", (20, frame.shape[0] - 20),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.55, (230, 230, 230), 1,
                 )
 
+                if writer is not None:
+                    writer.write(frame)
+
                 cv2.imshow("AI Intelligent Safety Mirror | Stage 1", frame)
-                if cv2.waitKey(1) & 0xFF in (ord("q"), ord("Q")):
+                key = cv2.waitKey(1) & 0xFF
+
+                if key == 17:
+                    ctrl_pressed = True
+                    continue
+
+                if ctrl_pressed and key in (ord("q"), ord("Q")):
+                    break
+
+                ctrl_pressed = False
+                if key in (ord("q"), ord("Q")):
                     break
     finally:
+        if writer is not None:
+            writer.release()
+            print(f"Recording saved to: {output_path}")
         camera.release()
         cv2.destroyAllWindows()
 
